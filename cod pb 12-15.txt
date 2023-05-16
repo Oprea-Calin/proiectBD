@@ -1,0 +1,160 @@
+//EX 12.1
+SELECT o.ID_oferta, o.pret_persoana, a.nume, d.tara, d.oras
+FROM Oferte o, Angajati a, Destinatii d
+WHERE o.id_angajat = a.id_angajat
+  AND o.id_destinatie = d.id_destinatie
+  AND o.pret_persoana = (
+    SELECT MIN(pret_persoana)
+    FROM Oferte
+    WHERE id_destinatie = o.id_destinatie );
+//EX12.2
+SELECT d.tara, c.nume, AVG(o.pret_persoana) AS medie_pret
+FROM (SELECT * FROM Destinatii WHERE tara = 'Franta') d,
+     (SELECT * FROM Cazari WHERE calificativ >= 8) c,
+     (SELECT * FROM Oferte WHERE activ_de_la_data >= TO_DATE('2022-01-01', 'YYYY-MM-DD')) o
+WHERE c.id_destinatie = d.id_destinatie
+GROUP BY d.tara, c.nume;
+//EX12.3
+SELECT
+  d.tara,
+  COUNT(o.id_oferta) AS numar_oferte,
+  AVG(o.pret_persoana) AS pret_mediu,
+  MIN(c.calificativ) AS calificativ_minim
+FROM
+  Destinatii d
+JOIN
+  Oferte o ON d.id_destinatie = o.id_destinatie
+JOIN
+  (
+    SELECT
+      id_cazare,
+      id_destinatie,
+      MAX(calificativ) AS calificativ
+    FROM
+      Cazari
+    GROUP BY
+      id_cazare,
+      id_destinatie
+  ) c ON d.id_destinatie = c.id_destinatie
+GROUP BY
+  d.tara
+HAVING
+  COUNT(o.id_oferta) > 5
+ORDER BY
+  numar_oferte DESC;
+//EX12.4
+SELECT
+  d.tara,
+  NVL(o.pret_persoana, 0) AS pret_oferta,
+  DECODE(c.calificativ, NULL, 'N/A', c.calificativ) AS calificativ_cazare
+FROM
+  Destinatii d
+LEFT JOIN
+  Oferte o ON d.id_destinatie = o.id_destinatie
+LEFT JOIN
+  Cazari c ON d.id_destinatie = c.id_destinatie
+ORDER BY
+  d.tara ASC;
+//EX12.5 SI EX 12.6
+WITH CTE AS (
+  SELECT
+    o.id_oferta,
+    d.tara,
+    c.nume,
+    o.activ_de_la_data,
+    o.activ_pana_la_data
+  FROM
+    Oferte o
+  JOIN
+    Destinatii d ON o.id_destinatie = d.id_destinatie
+  JOIN
+    Cazari c ON d.id_destinatie = c.id_destinatie
+)
+SELECT
+  id_oferta,
+  tara,
+  nume,
+  TO_CHAR(activ_de_la_data, 'DD/MM/YYYY') AS data_inceput_formatata,
+  TO_CHAR(activ_pana_la_data, 'DD/MM/YYYY') AS data_sfarsit_formatata,
+  UPPER(SUBSTR(tara, 1, 3)) AS prefix_destinatie,
+  LENGTH(nume) AS lungime_cazare,
+  CASE
+    WHEN activ_de_la_data < SYSDATE THEN 'Expirată'
+    WHEN activ_pana_la_data > SYSDATE THEN 'Valabilă'
+    ELSE 'În curs'
+  END AS stare_oferta
+FROM
+  CTE
+ORDER BY
+  id_oferta;
+
+//EX13.1
+UPDATE Oferte
+SET pret_persoana = pret_persoana * 1.3
+WHERE id_destinatie = (
+    SELECT id_destinatie
+    FROM Destinatii
+    WHERE tara = 'Franta'
+);
+//EX13.2
+DELETE FROM Obiective
+WHERE id_obiectiv = (
+    SELECT id_obiectiv
+    FROM Obiective o
+    LEFT JOIN Cazari c ON o.id_destinatie = c.id_destinatie
+    WHERE c.id_cazare IS NULL
+);
+//EX13.3
+PDATE Clienti
+SET telefon = '0720123456'
+WHERE id_client = (
+SELECT id_client
+FROM Clienti
+WHERE nume = 'Popescu' AND prenume = 'Maria'
+);
+//EX14
+WITH VizualizareComplexa AS (
+    SELECT a.id_angajat, a.nume, a.prenume, a.telefon, c.id_client, c.nume AS nume_client, c.prenume AS prenume_client, c.telefon AS telefon_client
+    FROM Angajati a
+    INNER JOIN Clienti c ON a.telefon = c.telefon
+)
+SELECT *
+FROM VizualizareComplexa;
+//EX14 LMD PERMIS
+SELECT id_angajat, nume, prenume
+FROM VizualizareComplexa
+WHERE telefon_client = '0720123456';
+//EX14 LMD NEPERMIS
+UPDATE VizualizareComplexa
+SET nume_client = 'Smith'
+WHERE id_angajat = 1;
+
+//EX15.1
+SELECT *
+FROM Angajati a
+FULL OUTER JOIN Oferte o ON a.id_angajat = o.id_angajat
+FULL OUTER JOIN Destinatii d ON o.id_destinatie = d.id_destinatie
+FULL OUTER JOIN Cazari c ON d.id_destinatie = c.id_destinatie;
+
+//EX15.2
+SELECT *
+FROM Oferte
+ORDER BY pret_persoana DESC
+FETCH FIRST 5 ROWS ONLY;
+
+//EX15.3
+SELECT a.nume, a.prenume
+FROM Angajati a
+WHERE NOT EXISTS (
+    SELECT *
+    FROM Destinatii d
+    WHERE NOT EXISTS (
+        SELECT *
+        FROM Oferte o
+        WHERE o.id_angajat = a.id_angajat
+        AND o.id_destinatie = d.id_destinatie
+    )
+);
+
+
+
